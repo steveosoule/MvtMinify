@@ -1,0 +1,82 @@
+<mvt:assign name="g.newline" value="asciichar(10)"/>
+
+<mvt:if expr="NOT ISNULL g.minify_js_enabled">
+	<mvt:assign name="l.settings:minify:js:enabled" value="g.minify_js_enabled" />
+<mvt:else>
+	<mvt:assign name="l.settings:minify:js:enabled" value="1" />
+</mvt:if>
+<mvt:if expr="NOT ISNULL g.minify_js_method">
+	<mvt:assign name="l.settings:minify:js:method" value="g.minify_js_method" />
+<mvt:else>
+	<mvt:assign name="l.settings:minify:js:method" value="'munee'" />
+</mvt:if>
+
+<mvt:comment>
+	<!--
+		<script>
+			var miva.data = {
+				minibasket: <mvt:item name="ry_toolbelt" param="eval|Json_Stringify(l.all_settings:global_minibasket)" />,
+				customer: <mvt:item name="ry_toolbelt" param="eval|Json_Stringify(g.customer)" />
+			};
+		</script>
+	-->
+</mvt:comment>
+
+<mvt:comment><!-- JavaScript Files --></mvt:comment>
+	<mvt:assign name="l.settings:js:files[1]"  value="'/js/modernizr.js'" />
+	<mvt:assign name="l.settings:js:files[2]"  value="'/js/plugins.js'" />
+	<mvt:assign name="l.settings:js:files[3]"  value="'/js/mvscreen.js'" />
+
+<mvt:if expr="NOT l.settings:minify:js:enabled">
+	<mvt:foreach iterator="file" array="js:files">
+		<mvt:assign name="l.settings:file" value="l.settings:file $ '?v=' $ stime(l.settings:file)" />
+		<script src="//&mvte:global:domain:name;&mvt:file;"></script>
+	</mvt:foreach>
+<mvt:else>
+	<mvt:comment><!-- Minify Method --></mvt:comment>
+		<mvt:comment><!-- Concatinate Scripts --></mvt:comment>
+		<mvt:foreach iterator="file" array="js:files">
+			<mvt:assign name="l.settings:this_file:length" value="file_read(l.settings:file, 'script', l.settings:this_file:contents)"/>
+			<mvt:assign name="l.settings:minify:js:output_file:contents" value="l.settings:minify:js:output_file:contents $ g.newline $ ';' $ l.settings:this_file:contents" />
+		</mvt:foreach>
+
+	<mvt:comment><!-- Minified Output File Variables --></mvt:comment>
+		<mvt:assign name="l.settings:minify:js:output_file:directory" value="'/js/'"/>
+		<mvt:assign name="l.settings:minify:js:output_file:name" value="'miva-scripts.min.js'"/>
+		<mvt:assign name="l.settings:minify:js:output_file:path" value="l.settings:minify:js:output_file:directory $ l.settings:minify:js:output_file:name"/>
+
+	<mvt:comment><!-- Determine time of last modified file --></mvt:comment>
+		<mvt:assign name="l.settings:minify:js:most_recent_stime" value="0" />
+		<mvt:foreach iterator="file" array="js:files">
+			<mvt:comment>
+				<!--
+					Miva creates new files and sets their File Modified time in GMT.
+					Therefore, if your FTP program sets the File Modified time in your local time,
+					then you need to update this accordingly
+				-->
+			</mvt:comment>
+			<mvt:assign name="l.settings:minify:timezone_offset" value="60 * 60 * 8" />
+			<mvt:assign name="l.settings:minify:js:current_stime" value="stime(l.settings:file) + l.settings:minify:timezone_offset" />
+			<mvt:assign name="l.settings:file" value="l.settings:file $ '?v=' $ l.settings:minify:js:current_stime" />
+			<mvt:if expr="l.settings:minify:js:current_stime GT l.settings:minify:js:most_recent_stime">
+				<mvt:assign name="l.settings:minify:js:most_recent_stime" value="l.settings:minify:js:current_stime" />
+			</mvt:if>
+		</mvt:foreach>
+		<mvt:assign name="l.settings:minify:js:output_file:stime" value="stime(l.settings:minify:js:output_file:path)" />
+
+	<mvt:comment><!-- Minified Output File CRUD --></mvt:comment>
+		<mvt:if expr="l.settings:minify:js:most_recent_stime GT l.settings:minify:js:output_file:stime">
+			<mvt:assign name="l.settings:minify:js:output_file:stime" value="l.settings:minify:js:most_recent_stime" />
+			<mvt:assign name="l.settings:minify:js:output_file:exists" value="sexists(l.settings:minify:js:output_file:path)"/>
+			<mvt:if expr="l.settings:minify:js:output_file:exists EQ 1">
+				<mvt:assign name="l.settings:minify:js:output_file:deleted" value="sdelete(l.settings:minify:js:output_file:path)"/>
+				<mvt:if expr="l.settings:minify:js:output_file:deleted EQ 1">
+					<mvt:assign name="l.settings:minify:js:file_created" value="file_create(l.settings:minify:js:output_file:path, 'script', l.settings:minify:js:output_file:contents)"/>
+				</mvt:if>
+			<mvt:else>
+				<mvt:assign name="l.settings:minify:js:file_created" value="file_create(l.settings:minify:js:output_file:path, 'script', l.settings:minify:js:output_file:contents)"/>
+			</mvt:if>
+		</mvt:if>
+
+		<script src="//&mvte:global:domain:name;&mvt:minify:js:output_file:path;?v=&mvt:minify:js:output_file:stime;"></script>
+</mvt:if>
